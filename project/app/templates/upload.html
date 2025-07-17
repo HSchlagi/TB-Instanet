@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Upload{% endblock %}
+{% block content %}
+<h1 class="text-xl mb-4">Upload Profile for {{ project.name }}</h1>
+<form method="post" enctype="multipart/form-data" class="space-y-4">
+  {{ form.hidden_tag() }}
+  {{ form.file.label(class="block") }}
+  {{ form.file(class="border p-2") }}
+  {{ form.submit(class="bg-blue-600 text-white px-4 py-2") }}
+</form>
+{% endblock %}

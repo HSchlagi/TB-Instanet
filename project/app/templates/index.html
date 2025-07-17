@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Projects{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-4">Projects</h1>
+<table class="min-w-full bg-white"><thead><tr><th class="p-2">Name</th><th class="p-2">Actions</th></tr></thead><tbody>
+{% for project in projects %}
+<tr class="border-t"><td class="p-2">{{ project.name }}</td>
+<td class="p-2">
+<a class="text-blue-600" href="{{ url_for('main.upload_profile', project_id=project.id) }}">Upload Profile</a> |
+<a class="text-green-600" href="{{ url_for('main.simulate', project_id=project.id) }}">Simulate</a>
+</td></tr>
+{% else %}
+<tr><td colspan="2" class="p-2">No projects.</td></tr>
+{% endfor %}
+</tbody></table>
+{% endblock %}

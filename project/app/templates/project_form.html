@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}New Project{% endblock %}
+{% block content %}
+<h1 class="text-xl mb-4">New Project</h1>
+<form method="post" class="space-y-4">
+  {{ form.hidden_tag() }}
+  <div>
+    {{ form.name.label(class="block") }}
+    {{ form.name(class="border p-2 w-full") }}
+  </div>
+  <div>
+    {{ form.location.label(class="block") }}
+    {{ form.location(class="border p-2 w-full") }}
+  </div>
+  <div>
+    {{ form.date.label(class="block") }}
+    {{ form.date(class="border p-2 w-full") }}
+  </div>
+  <div>
+    {{ form.bess_size.label(class="block") }}
+    {{ form.bess_size(class="border p-2 w-full") }}
+  </div>
+  <div>
+    {{ form.pv_power.label(class="block") }}
+    {{ form.pv_power(class="border p-2 w-full") }}
+  </div>
+  <div>
+    {{ form.hydro_power.label(class="block") }}
+    {{ form.hydro_power(class="border p-2 w-full") }}
+  </div>
+  {{ form.submit(class="bg-blue-600 text-white px-4 py-2") }}
+</form>
+{% endblock %}
