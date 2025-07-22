@@ -6,6 +6,7 @@ class Customer(db.Model):
     name = db.Column(db.String(100), nullable=False)
     company = db.Column(db.String(200))
     contact = db.Column(db.String(200))
+    phone = db.Column(db.String(50))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Project(db.Model):
@@ -53,12 +54,21 @@ class SpotPrice(db.Model):
 
 class InvestmentCost(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('project.id'))
-    project = db.relationship('Project', backref='investment_costs')
-    component_type = db.Column(db.String(50))  # 'bess', 'pv', 'inverter', 'installation'
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+    component_type = db.Column(db.String(50), nullable=False)
+    component_subtype = db.Column(db.String(50))  # z.B. 'battery', 'inverter', 'modules'
     cost_eur = db.Column(db.Float, nullable=False)
+    cost_per_unit = db.Column(db.Float)  # €/kW oder €/kWh
+    power_kw = db.Column(db.Float)  # Leistung in kW
+    capacity_kwh = db.Column(db.Float)  # Kapazität in kWh
     description = db.Column(db.Text)
+    manufacturer = db.Column(db.String(100))  # Hersteller
+    model = db.Column(db.String(100))  # Modell
+    quantity = db.Column(db.Integer, default=1)  # Anzahl
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Beziehung zum Projekt
+    project = db.relationship('Project', backref='investment_costs')
 
 class ReferencePrice(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -72,11 +82,17 @@ class ReferencePrice(db.Model):
 
 class WeatherData(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('project.id'))
-    project = db.relationship('Project', backref='weather_data')
-    name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+    timestamp = db.Column(db.DateTime, nullable=False)
+    temperature_c = db.Column(db.Float)  # Temperatur in °C
+    humidity_percent = db.Column(db.Float)  # Luftfeuchtigkeit in %
+    wind_speed_ms = db.Column(db.Float)  # Windgeschwindigkeit in m/s
+    wind_direction_deg = db.Column(db.Float)  # Windrichtung in Grad
+    pressure_hpa = db.Column(db.Float)  # Luftdruck in hPa
+    data_source = db.Column(db.String(50))  # 'import', 'weather_station'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    project = db.relationship('Project', backref='weather_data')
 
 class WeatherValue(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -92,11 +108,14 @@ class WeatherValue(db.Model):
 
 class SolarData(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('project.id'))
-    project = db.relationship('Project', backref='solar_data')
-    name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+    timestamp = db.Column(db.DateTime, nullable=False)
+    irradiation_wm2 = db.Column(db.Float)  # Globalstrahlung in W/m²
+    power_kw = db.Column(db.Float)  # PV-Leistung in kW (für PVSol-Export)
+    data_source = db.Column(db.String(50))  # 'import', 'pvsol_simulation', 'weather_station'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    project = db.relationship('Project', backref='solar_data')
 
 class SolarValue(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -111,11 +130,14 @@ class SolarValue(db.Model):
 
 class HydroData(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('project.id'))
-    project = db.relationship('Project', backref='hydro_data')
-    name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+    timestamp = db.Column(db.DateTime, nullable=False)
+    water_level_m = db.Column(db.Float)  # Wasserstand in m
+    flow_rate_ms = db.Column(db.Float)  # Durchfluss in m³/s
+    data_source = db.Column(db.String(50))  # 'import', 'measurement_station'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    project = db.relationship('Project', backref='hydro_data')
 
 class HydroValue(db.Model):
     id = db.Column(db.Integer, primary_key=True)

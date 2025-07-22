@@ -181,7 +181,7 @@ function updateProject() {
     .then(data => {
         if (data.success) {
             alert('Projekt erfolgreich aktualisiert!');
-            window.location.href = `/view_project?id=${currentProjectId}`;
+            window.location.href = `/project/${currentProjectId}`;
         } else {
             alert('Fehler beim Aktualisieren des Projekts: ' + data.error);
         }

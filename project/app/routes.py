@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
-from app import db
-from models import Project, LoadProfile, LoadValue, Customer, InvestmentCost, ReferencePrice, SpotPrice
+from app import db, csrf
+from models import Project, LoadProfile, LoadValue, Customer, InvestmentCost, ReferencePrice, SpotPrice, SolarData, HydroData, WeatherData
 from datetime import datetime, timedelta
 import random
 
@@ -26,17 +26,9 @@ def customers():
 def spot_prices():
     return render_template('spot_prices.html')
 
-@main_bp.route('/investment_costs')
-def investment_costs():
-    return render_template('investment_costs.html')
-
 @main_bp.route('/reference_prices')
 def reference_prices():
     return render_template('reference_prices.html')
-
-@main_bp.route('/economic_analysis')
-def economic_analysis():
-    return render_template('economic_analysis.html')
 
 @main_bp.route('/preview_data')
 def preview_data():
@@ -54,9 +46,10 @@ def new_project():
 def new_customer():
     return render_template('new_customer.html')
 
-@main_bp.route('/view_project')
-def view_project():
-    return render_template('view_project.html')
+@main_bp.route('/project/<int:project_id>')
+def view_project(project_id):
+    project = Project.query.get_or_404(project_id)
+    return render_template('project_detail.html', project=project)
 
 @main_bp.route('/edit_project')
 def edit_project():
@@ -89,6 +82,7 @@ def api_projects():
     } for p in projects])
 
 @main_bp.route('/api/projects', methods=['POST'])
+@csrf.exempt
 def api_create_project():
     try:
         data = request.get_json()
@@ -133,6 +127,7 @@ def api_get_project(project_id):
     })
 
 @main_bp.route('/api/projects/<int:project_id>', methods=['PUT'])
+@csrf.exempt
 def api_update_project(project_id):
     try:
         project = Project.query.get_or_404(project_id)
@@ -165,6 +160,7 @@ def api_update_project(project_id):
         return jsonify({'error': str(e)}), 400
 
 @main_bp.route('/api/projects/<int:project_id>', methods=['DELETE'])
+@csrf.exempt
 def api_delete_project(project_id):
     try:
         project = Project.query.get_or_404(project_id)
@@ -198,13 +194,37 @@ def api_customers():
         'name': c.name,
         'company': c.company,
         'contact': c.contact,
+        'phone': c.phone,
         'projects_count': len(c.projects)
     } for c in customers])
 
 @main_bp.route('/api/customers', methods=['POST'])
+@csrf.exempt
 def api_create_customer():
-    print("=== CUSTOMER API CALLED ===")
-    return jsonify({'success': True, 'id': 1}), 201
+    try:
+        data = request.get_json()
+        print(f"Received customer data: {data}")
+        
+        if not data or not data.get('name'):
+            return jsonify({'error': 'Name ist erforderlich'}), 400
+        
+        customer = Customer(
+            name=data['name'].strip(),
+            company=data.get('company', '').strip() or None,
+            contact=data.get('contact', '').strip() or None,
+            phone=data.get('phone', '').strip() or None
+        )
+        
+        db.session.add(customer)
+        db.session.commit()
+        
+        print(f"Customer created successfully: {customer.id}")
+        return jsonify({'success': True, 'id': customer.id}), 201
+        
+    except Exception as e:
+        print(f"Error creating customer: {e}")
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
 
 @main_bp.route('/api/customers/<int:customer_id>')
 def api_get_customer(customer_id):
@@ -214,10 +234,12 @@ def api_get_customer(customer_id):
         'name': customer.name,
         'company': customer.company,
         'contact': customer.contact,
+        'phone': customer.phone,
         'created_at': customer.created_at.isoformat()
     })
 
 @main_bp.route('/api/customers/<int:customer_id>', methods=['PUT'])
+@csrf.exempt
 def api_update_customer(customer_id):
     try:
         customer = Customer.query.get_or_404(customer_id)
@@ -226,6 +248,7 @@ def api_update_customer(customer_id):
         customer.name = data['name']
         customer.company = data.get('company')
         customer.contact = data.get('contact')
+        customer.phone = data.get('phone')
         
         db.session.commit()
         return jsonify({'success': True})
@@ -233,6 +256,7 @@ def api_update_customer(customer_id):
         return jsonify({'error': str(e)}), 400
 
 @main_bp.route('/api/customers/<int:customer_id>', methods=['DELETE'])
+@csrf.exempt
 def api_delete_customer(customer_id):
     try:
         customer = Customer.query.get_or_404(customer_id)
@@ -271,23 +295,90 @@ def api_investment_costs():
     return jsonify([{
         'id': c.id,
         'component_type': c.component_type,
+        'component_subtype': c.component_subtype,
         'cost_eur': c.cost_eur,
-        'description': c.description
+        'cost_per_unit': c.cost_per_unit,
+        'power_kw': c.power_kw,
+        'capacity_kwh': c.capacity_kwh,
+        'description': c.description,
+        'manufacturer': c.manufacturer,
+        'model': c.model,
+        'quantity': c.quantity
     } for c in costs])
 
 @main_bp.route('/api/investment-costs', methods=['POST'])
+@csrf.exempt
 def api_create_investment_cost():
     try:
         data = request.get_json()
         cost = InvestmentCost(
             project_id=data['project_id'],
             component_type=data['component_type'],
+            component_subtype=data.get('component_subtype'),
             cost_eur=data['cost_eur'],
-            description=data.get('description')
+            cost_per_unit=data.get('cost_per_unit'),
+            power_kw=data.get('power_kw'),
+            capacity_kwh=data.get('capacity_kwh'),
+            description=data.get('description'),
+            manufacturer=data.get('manufacturer'),
+            model=data.get('model'),
+            quantity=data.get('quantity', 1)
         )
         db.session.add(cost)
         db.session.commit()
         return jsonify({'success': True, 'id': cost.id}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@main_bp.route('/api/investment-costs/<int:cost_id>')
+def api_get_investment_cost(cost_id):
+    cost = InvestmentCost.query.get_or_404(cost_id)
+    return jsonify({
+        'id': cost.id,
+        'project_id': cost.project_id,
+        'component_type': cost.component_type,
+        'component_subtype': cost.component_subtype,
+        'cost_eur': cost.cost_eur,
+        'cost_per_unit': cost.cost_per_unit,
+        'power_kw': cost.power_kw,
+        'capacity_kwh': cost.capacity_kwh,
+        'description': cost.description,
+        'manufacturer': cost.manufacturer,
+        'model': cost.model,
+        'quantity': cost.quantity
+    })
+
+@main_bp.route('/api/investment-costs/<int:cost_id>', methods=['PUT'])
+@csrf.exempt
+def api_update_investment_cost(cost_id):
+    try:
+        cost = InvestmentCost.query.get_or_404(cost_id)
+        data = request.get_json()
+        
+        cost.component_type = data['component_type']
+        cost.component_subtype = data.get('component_subtype')
+        cost.cost_eur = data['cost_eur']
+        cost.cost_per_unit = data.get('cost_per_unit')
+        cost.power_kw = data.get('power_kw')
+        cost.capacity_kwh = data.get('capacity_kwh')
+        cost.description = data.get('description')
+        cost.manufacturer = data.get('manufacturer')
+        cost.model = data.get('model')
+        cost.quantity = data.get('quantity', 1)
+        
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@main_bp.route('/api/investment-costs/<int:cost_id>', methods=['DELETE'])
+@csrf.exempt
+def api_delete_investment_cost(cost_id):
+    try:
+        cost = InvestmentCost.query.get_or_404(cost_id)
+        db.session.delete(cost)
+        db.session.commit()
+        return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
@@ -306,6 +397,7 @@ def api_reference_prices():
     } for p in prices])
 
 @main_bp.route('/api/reference-prices', methods=['POST'])
+@csrf.exempt
 def api_create_reference_price():
     try:
         data = request.get_json()
@@ -325,6 +417,7 @@ def api_create_reference_price():
 
 # API Routes für Spot-Preise
 @main_bp.route('/api/spot-prices', methods=['POST'])
+@csrf.exempt
 def api_spot_prices():
     try:
         data = request.get_json()
@@ -387,6 +480,7 @@ def api_spot_prices():
         return jsonify({'error': str(e)}), 400
 
 @main_bp.route('/api/spot-prices/import', methods=['POST'])
+@csrf.exempt
 def api_spot_prices_import():
     try:
         # Demo-Import-Funktionalität
@@ -395,6 +489,7 @@ def api_spot_prices_import():
         return jsonify({'error': str(e)}), 400
 
 @main_bp.route('/api/load-profiles/<int:load_profile_id>/data-range', methods=['POST'])
+@csrf.exempt
 def api_load_profile_data_range(load_profile_id):
     """API für Lastdaten eines Lastprofils für einen spezifischen Datumsbereich"""
     try:
@@ -479,3 +574,497 @@ def test_customer():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 400 
+
+# Lastprofil-Import Route
+@main_bp.route('/load_profile_import')
+def load_profile_import():
+    return render_template('load_profile_import.html')
+
+# API Route für Lastprofil-Import
+@main_bp.route('/api/load-profiles', methods=['POST'])
+@csrf.exempt
+def api_create_load_profile():
+    try:
+        data = request.get_json()
+        
+        # Import-Einstellungen
+        time_interval = data.get('time_interval', 15)  # Minuten
+        date_format = data.get('date_format', 'auto')
+        meter_combination = data.get('meter_combination', 'sum')
+        
+        # Lastprofil erstellen
+        load_profile = LoadProfile(
+            project_id=data['project_id'],
+            name=data['name']
+        )
+        db.session.add(load_profile)
+        db.session.flush()  # ID generieren
+        
+        # Daten verarbeiten und normalisieren
+        processed_data = process_load_data(data['data'], time_interval, date_format, meter_combination)
+        
+        # Lastwerte hinzufügen
+        for item in processed_data:
+            load_value = LoadValue(
+                load_profile_id=load_profile.id,
+                timestamp=datetime.fromisoformat(item['timestamp']),
+                load_kw=item['load']
+            )
+            db.session.add(load_value)
+        
+        db.session.commit()
+        return jsonify({'success': True, 'id': load_profile.id, 'data_points': len(processed_data)}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
+
+def process_load_data(raw_data, time_interval, date_format, meter_combination):
+    """Verarbeitet und normalisiert Lastdaten"""
+    processed_data = []
+    
+    # Daten nach Zeitstempel sortieren
+    sorted_data = sorted(raw_data, key=lambda x: x['timestamp'])
+    
+    # Zeitintervalle normalisieren
+    current_interval_start = None
+    interval_data = []
+    
+    for item in sorted_data:
+        timestamp = datetime.fromisoformat(item['timestamp'])
+        
+        # Zeitstempel auf Intervall runden
+        if time_interval == 15:
+            # Auf 15-Minuten-Intervalle runden
+            rounded_time = timestamp.replace(minute=(timestamp.minute // 15) * 15, second=0, microsecond=0)
+        elif time_interval == 30:
+            # Auf 30-Minuten-Intervalle runden
+            rounded_time = timestamp.replace(minute=(timestamp.minute // 30) * 30, second=0, microsecond=0)
+        elif time_interval == 60:
+            # Auf Stunden-Intervalle runden
+            rounded_time = timestamp.replace(minute=0, second=0, microsecond=0)
+        else:
+            rounded_time = timestamp
+        
+        if current_interval_start is None:
+            current_interval_start = rounded_time
+            interval_data = [item['load']]
+        elif rounded_time == current_interval_start:
+            # Gleiches Intervall - Daten sammeln
+            interval_data.append(item['load'])
+        else:
+            # Neues Intervall - vorheriges verarbeiten
+            if interval_data:
+                combined_load = combine_load_values(interval_data, meter_combination)
+                processed_data.append({
+                    'timestamp': current_interval_start.isoformat(),
+                    'load': combined_load
+                })
+            
+            # Neues Intervall starten
+            current_interval_start = rounded_time
+            interval_data = [item['load']]
+    
+    # Letztes Intervall verarbeiten
+    if interval_data:
+        combined_load = combine_load_values(interval_data, meter_combination)
+        processed_data.append({
+            'timestamp': current_interval_start.isoformat(),
+            'load': combined_load
+        })
+    
+    return processed_data
+
+def combine_load_values(values, combination):
+    """Kombiniert Lastwerte nach der gewählten Methode"""
+    if not values:
+        return 0
+    
+    if combination == 'sum':
+        return sum(values)
+    elif combination == 'max':
+        return max(values)
+    elif combination == 'average':
+        return sum(values) / len(values)
+    else:
+        return sum(values)  # Standard: Summe
+
+# API Route für BESS-Analyse
+@main_bp.route('/api/load-profiles/<int:load_profile_id>/bess-analysis', methods=['POST'])
+@csrf.exempt
+def api_bess_analysis(load_profile_id):
+    try:
+        data = request.get_json()
+        bess_capacity = data['bess_capacity']  # kWh
+        bess_power = data['bess_power']  # kW
+        
+        # Alle Lastwerte abrufen
+        load_values = LoadValue.query.filter_by(
+            load_profile_id=load_profile_id
+        ).order_by(LoadValue.timestamp).all()
+        
+        if not load_values:
+            return jsonify({'error': 'Keine Lastdaten verfügbar'}), 400
+        
+        # BESS-Simulation
+        bess_energy = 0  # Aktueller Batteriestand (kWh)
+        peak_reduction = 0
+        total_energy_stored = 0
+        total_energy_discharged = 0
+        
+        bess_data = []
+        
+        for value in load_values:
+            original_load = value.load_kw
+            
+            # BESS-Logik: Bei niedriger Last laden, bei hoher Last entladen
+            if original_load < bess_power * 0.3:  # Niedrige Last - laden
+                charge_power = min(bess_power, (bess_capacity - bess_energy) / 0.25)  # 15 Minuten
+                bess_energy = min(bess_capacity, bess_energy + charge_power * 0.25)
+                bess_load = original_load + charge_power
+                total_energy_stored += charge_power * 0.25
+            else:  # Hohe Last - entladen
+                discharge_power = min(bess_power, bess_energy / 0.25)  # 15 Minuten
+                bess_energy = max(0, bess_energy - discharge_power * 0.25)
+                bess_load = max(0, original_load - discharge_power)
+                total_energy_discharged += discharge_power * 0.25
+                peak_reduction = max(peak_reduction, original_load - bess_load)
+            
+            bess_data.append({
+                'timestamp': value.timestamp.isoformat(),
+                'original_load': original_load,
+                'bess_load': bess_load,
+                'bess_energy': bess_energy
+            })
+        
+        # Kosteneinsparung berechnen (vereinfacht)
+        # Annahme: 0.30 €/kWh für Peak-Strom
+        cost_savings = total_energy_discharged * 0.30
+        
+        results = {
+            'peak_reduction': peak_reduction,
+            'energy_stored': total_energy_stored,
+            'energy_discharged': total_energy_discharged,
+            'cost_savings': cost_savings
+        }
+        
+        return jsonify({
+            'success': True,
+            'data': bess_data,
+            'results': results
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400 
+
+# Datenimport-Center Route
+@main_bp.route('/data_import_center')
+def data_import_center():
+    return render_template('data_import_center.html')
+
+# API Route für Lastprofil-Import (erweitert)
+@main_bp.route('/api/data-import/load', methods=['POST'])
+@csrf.exempt
+def api_import_load_data():
+    try:
+        data = request.get_json()
+        project_id = data['project_id']
+        raw_data = data['data']
+        settings = data['settings']
+        
+        # Daten verarbeiten
+        processed_data = process_energy_data(raw_data, 'load', settings)
+        
+        # Lastprofil erstellen
+        load_profile = LoadProfile(
+            project_id=project_id,
+            name=f"Lastprofil {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        )
+        db.session.add(load_profile)
+        db.session.flush()
+        
+        # Lastwerte hinzufügen
+        for item in processed_data:
+            load_value = LoadValue(
+                load_profile_id=load_profile.id,
+                timestamp=item['timestamp'],
+                load_kw=item['value']
+            )
+            db.session.add(load_value)
+        
+        db.session.commit()
+        return jsonify({'success': True, 'data_points': len(processed_data)})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
+
+# API Route für Einstrahlungsdaten-Import
+@main_bp.route('/api/data-import/solar', methods=['POST'])
+@csrf.exempt
+def api_import_solar_data():
+    try:
+        data = request.get_json()
+        project_id = data['project_id']
+        raw_data = data['data']
+        settings = data['settings']
+        
+        # Daten verarbeiten
+        processed_data = process_energy_data(raw_data, 'solar', settings)
+        
+        # Solar-Daten speichern
+        for item in processed_data:
+            solar_data = SolarData(
+                project_id=project_id,
+                timestamp=item['timestamp'],
+                irradiation_wm2=item['value'],
+                data_source='import'
+            )
+            db.session.add(solar_data)
+        
+        db.session.commit()
+        return jsonify({'success': True, 'data_points': len(processed_data)})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
+
+# API Route für Pegelstände-Import
+@main_bp.route('/api/data-import/hydro', methods=['POST'])
+@csrf.exempt
+def api_import_hydro_data():
+    try:
+        data = request.get_json()
+        project_id = data['project_id']
+        raw_data = data['data']
+        settings = data['settings']
+        
+        # Daten verarbeiten
+        processed_data = process_energy_data(raw_data, 'hydro', settings)
+        
+        # Hydro-Daten speichern
+        for item in processed_data:
+            hydro_data = HydroData(
+                project_id=project_id,
+                timestamp=item['timestamp'],
+                water_level_m=item['value'],
+                data_source='import'
+            )
+            db.session.add(hydro_data)
+        
+        db.session.commit()
+        return jsonify({'success': True, 'data_points': len(processed_data)})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
+
+# API Route für PVSol-Export-Import
+@main_bp.route('/api/data-import/pvsol', methods=['POST'])
+@csrf.exempt
+def api_import_pvsol_data():
+    try:
+        data = request.get_json()
+        project_id = data['project_id']
+        raw_data = data['data']
+        settings = data['settings']
+        
+        # Daten verarbeiten
+        processed_data = process_energy_data(raw_data, 'pvsol', settings)
+        
+        # PVSol-Daten speichern
+        for item in processed_data:
+            pv_data = SolarData(
+                project_id=project_id,
+                timestamp=item['timestamp'],
+                power_kw=item['value'],
+                data_source='pvsol_simulation'
+            )
+            db.session.add(pv_data)
+        
+        db.session.commit()
+        return jsonify({'success': True, 'data_points': len(processed_data)})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
+
+# API Route für Wetterdaten-Import
+@main_bp.route('/api/data-import/weather', methods=['POST'])
+@csrf.exempt
+def api_import_weather_data():
+    try:
+        data = request.get_json()
+        project_id = data['project_id']
+        raw_data = data['data']
+        settings = data['settings']
+        
+        # Daten verarbeiten
+        processed_data = process_energy_data(raw_data, 'weather', settings)
+        
+        # Wetterdaten speichern
+        for item in processed_data:
+            weather_data = WeatherData(
+                project_id=project_id,
+                timestamp=item['timestamp'],
+                temperature_c=item['value'],
+                data_source='import'
+            )
+            db.session.add(weather_data)
+        
+        db.session.commit()
+        return jsonify({'success': True, 'data_points': len(processed_data)})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
+
+def process_energy_data(raw_data, data_type, settings):
+    """Intelligente Datenverarbeitung für alle Energie-Datentypen"""
+    processed_data = []
+    
+    # Daten nach Zeitstempel sortieren
+    sorted_data = sorted(raw_data, key=lambda x: x['timestamp'])
+    
+    # Zeitintervalle normalisieren
+    time_interval = settings.get('time_interval', 15)  # Minuten
+    data_combination = settings.get('data_combination', 'sum')
+    quality_check = settings.get('quality_check', 'normal')
+    
+    current_interval_start = None
+    interval_data = []
+    
+    for item in sorted_data:
+        timestamp = item['timestamp']
+        
+        # Sicherstellen, dass timestamp ein datetime Objekt ist
+        if isinstance(timestamp, str):
+            try:
+                timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            except ValueError:
+                continue
+        
+        # Zeitstempel auf Intervall runden
+        if time_interval == 15:
+            rounded_time = timestamp.replace(minute=(timestamp.minute // 15) * 15, second=0, microsecond=0)
+        elif time_interval == 30:
+            rounded_time = timestamp.replace(minute=(timestamp.minute // 30) * 30, second=0, microsecond=0)
+        elif time_interval == 60:
+            rounded_time = timestamp.replace(minute=0, second=0, microsecond=0)
+        elif time_interval == 1440:
+            rounded_time = timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
+        else:
+            rounded_time = timestamp
+        
+        # Qualitätsprüfung
+        if not quality_check_data(item, data_type, quality_check):
+            continue
+        
+        if current_interval_start is None:
+            current_interval_start = rounded_time
+            interval_data = [item['value']]
+        elif rounded_time == current_interval_start:
+            # Gleiches Intervall - Daten sammeln
+            interval_data.append(item['value'])
+        else:
+            # Neues Intervall - vorheriges verarbeiten
+            if interval_data:
+                combined_value = combine_data_values(interval_data, data_combination)
+                processed_data.append({
+                    'timestamp': current_interval_start,
+                    'value': combined_value
+                })
+            
+            # Neues Intervall starten
+            current_interval_start = rounded_time
+            interval_data = [item['value']]
+    
+    # Letztes Intervall verarbeiten
+    if interval_data:
+        combined_value = combine_data_values(interval_data, data_combination)
+        processed_data.append({
+            'timestamp': current_interval_start,
+            'value': combined_value
+        })
+    
+    return processed_data
+
+def quality_check_data(item, data_type, quality_level):
+    """Qualitätsprüfung für Datenpunkte"""
+    value = item['value']
+    
+    # Grundlegende Prüfungen
+    if value is None or value == '':
+        return False
+    
+    # Sicherstellen, dass value eine Zahl ist
+    try:
+        value = float(value)
+    except (ValueError, TypeError):
+        return False
+    
+    # Typ-spezifische Prüfungen
+    if data_type == 'load':
+        if quality_level == 'strict':
+            return 0 <= value <= 10000  # kW
+        elif quality_level == 'normal':
+            return 0 <= value <= 50000
+        else:  # loose
+            return -1000 <= value <= 100000
+    elif data_type == 'solar':
+        if quality_level == 'strict':
+            return 0 <= value <= 1200  # W/m²
+        elif quality_level == 'normal':
+            return 0 <= value <= 1500
+        else:  # loose
+            return -100 <= value <= 2000
+    elif data_type == 'hydro':
+        if quality_level == 'strict':
+            return 0 <= value <= 100  # m
+        elif quality_level == 'normal':
+            return -10 <= value <= 200
+        else:  # loose
+            return -50 <= value <= 500
+    elif data_type == 'pvsol':
+        if quality_level == 'strict':
+            return 0 <= value <= 10000  # kW
+        elif quality_level == 'normal':
+            return 0 <= value <= 50000
+        else:  # loose
+            return -1000 <= value <= 100000
+    elif data_type == 'weather':
+        if quality_level == 'strict':
+            return -50 <= value <= 60  # °C
+        elif quality_level == 'normal':
+            return -100 <= value <= 100
+        else:  # loose
+            return -200 <= value <= 200
+    
+    return True
+
+def combine_data_values(values, combination):
+    """Kombiniert Datenwerte nach der gewählten Methode"""
+    if not values:
+        return 0
+    
+    # Sicherstellen, dass alle Werte Zahlen sind
+    numeric_values = []
+    for value in values:
+        try:
+            numeric_values.append(float(value))
+        except (ValueError, TypeError):
+            continue
+    
+    if not numeric_values:
+        return 0
+    
+    if combination == 'sum':
+        return sum(numeric_values)
+    elif combination == 'max':
+        return max(numeric_values)
+    elif combination == 'average':
+        return sum(numeric_values) / len(numeric_values)
+    elif combination == 'weighted':
+        # Gewichtete Mittelung (neueste Werte haben höheres Gewicht)
+        total_weight = 0
+        weighted_sum = 0
+        for i, value in enumerate(numeric_values):
+            weight = i + 1
+            weighted_sum += value * weight
+            total_weight += weight
+        return weighted_sum / total_weight if total_weight > 0 else 0
+    else:
+        return sum(numeric_values)  # Standard: Summe 

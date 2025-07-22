@@ -1,0 +1,8 @@
+# Virtuelle Umgebung erstellen
+python -m venv venv
+
+
+python -m flask run --host=127.0.0.1 --port=5000
+
+mit dem obigen Befehl im Ordner (venv) PS D:\Daten-Heinz\TB-Instanet\project>
+starten

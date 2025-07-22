@@ -1,0 +1,976 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }} - Projekt Details{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Projekt-Header -->
+    <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6 mb-6">
+        <div class="flex justify-between items-start">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">{{ project.name }}</h1>
+                <p class="text-gray-600 mt-2">{{ project.location }}</p>
+                <p class="text-sm text-gray-500 mt-1">Erstellt am {{ project.created_at.strftime('%d.%m.%Y') }}</p>
+            </div>
+            <div class="flex space-x-3">
+                <a href="{{ url_for('main.edit_project', project_id=project.id) }}" 
+                   class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
+                    <i class="fas fa-edit mr-2"></i>Bearbeiten
+                </a>
+                <button onclick="deleteProject({{ project.id }})" 
+                        class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md">
+                    <i class="fas fa-trash mr-2"></i>Löschen
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab-Navigation -->
+    <div class="bg-white rounded-xl shadow-md border border-gray-100 mb-6">
+        <div class="border-b border-gray-200">
+            <nav class="flex space-x-8 px-6">
+                <button onclick="showTab('overview')" id="tab-overview" 
+                        class="tab-button py-4 px-1 border-b-2 border-blue-500 text-blue-600 font-medium">
+                    <i class="fas fa-info-circle mr-2"></i>Übersicht
+                </button>
+                <button onclick="showTab('costs')" id="tab-costs" 
+                        class="tab-button py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium">
+                    <i class="fas fa-euro-sign mr-2"></i>Investitionskosten
+                </button>
+                <button onclick="showTab('data')" id="tab-data" 
+                        class="tab-button py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium">
+                    <i class="fas fa-database mr-2"></i>Daten
+                </button>
+                <button onclick="showTab('analysis')" id="tab-analysis" 
+                        class="tab-button py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium">
+                    <i class="fas fa-chart-line mr-2"></i>Analyse
+                </button>
+            </nav>
+        </div>
+
+        <!-- Tab-Inhalte -->
+        <div class="p-6">
+            <!-- Übersicht Tab -->
+            <div id="content-overview" class="tab-content">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Technische Spezifikationen -->
+                    <div class="bg-gray-50 p-6 rounded-lg">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                            <i class="fas fa-cogs mr-2"></i>Technische Spezifikationen
+                        </h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">BESS Größe:</span>
+                                <span class="font-medium">{{ project.bess_size or 0 }} kWh</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">BESS Leistung:</span>
+                                <span class="font-medium">{{ project.bess_power or 0 }} kW</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">PV Leistung:</span>
+                                <span class="font-medium">{{ project.pv_power or 0 }} kW</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Wärmepumpe:</span>
+                                <span class="font-medium">{{ project.hp_power or 0 }} kW</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Windkraft:</span>
+                                <span class="font-medium">{{ project.wind_power or 0 }} kW</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Wasserkraft:</span>
+                                <span class="font-medium">{{ project.hydro_power or 0 }} kW</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kundeninformationen -->
+                    <div class="bg-gray-50 p-6 rounded-lg">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                            <i class="fas fa-user mr-2"></i>Kunde
+                        </h3>
+                        {% if project.customer %}
+                        <div class="space-y-3">
+                            <div>
+                                <span class="text-gray-600">Name:</span>
+                                <span class="font-medium block">{{ project.customer.name }}</span>
+                            </div>
+                            {% if project.customer.company %}
+                            <div>
+                                <span class="text-gray-600">Firma:</span>
+                                <span class="font-medium block">{{ project.customer.company }}</span>
+                            </div>
+                            {% endif %}
+                            {% if project.customer.contact %}
+                            <div>
+                                <span class="text-gray-600">E-Mail:</span>
+                                <span class="font-medium block">{{ project.customer.contact }}</span>
+                            </div>
+                            {% endif %}
+                            {% if project.customer.phone %}
+                            <div>
+                                <span class="text-gray-600">Telefon:</span>
+                                <span class="font-medium block">{{ project.customer.phone }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <p class="text-gray-500">Kein Kunde zugeordnet</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Projekt-Status -->
+                    <div class="bg-gray-50 p-6 rounded-lg">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                            <i class="fas fa-chart-pie mr-2"></i>Status
+                        </h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Projektdatum:</span>
+                                <span class="font-medium">{{ project.date.strftime('%d.%m.%Y') if project.date else 'Nicht gesetzt' }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Lastprofile:</span>
+                                <span class="font-medium" id="loadProfilesCount">0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Investitionskosten:</span>
+                                <span class="font-medium" id="totalCosts">0 €</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Investitionskosten Tab -->
+            <div id="content-costs" class="tab-content hidden">
+                <div class="mb-6">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-xl font-semibold text-gray-900">Investitionskosten</h3>
+                        <button onclick="openNewCostModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
+                            <i class="fas fa-plus mr-2"></i>Neue Kosten
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Kosten-Übersicht -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <div class="text-2xl font-bold text-blue-600" id="costsTotal">0</div>
+                        <div class="text-sm text-blue-700">Gesamtkosten (€)</div>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <div class="text-2xl font-bold text-green-600" id="costsBess">0</div>
+                        <div class="text-sm text-green-700">BESS-Kosten (€)</div>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-lg">
+                        <div class="text-2xl font-bold text-purple-600" id="costsPv">0</div>
+                        <div class="text-sm text-purple-700">PV-Kosten (€)</div>
+                    </div>
+                    <div class="bg-orange-50 p-4 rounded-lg">
+                        <div class="text-2xl font-bold text-orange-600" id="costsOther">0</div>
+                        <div class="text-sm text-orange-700">Sonstige (€)</div>
+                    </div>
+                </div>
+
+                <!-- Kosten-Tabelle -->
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Komponente</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Typ</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kosten (€)</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Beschreibung</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody id="costsTableBody" class="bg-white divide-y divide-gray-200">
+                            <!-- Kosten werden hier dynamisch geladen -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Verbesserte Kosten-Chart -->
+                <div class="mt-8">
+                    <h4 class="text-lg font-semibold text-gray-900 mb-4">Kostenverteilung & Analyse</h4>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div>
+                            <canvas id="costsChart" width="400" height="300"></canvas>
+                        </div>
+                        <div id="costsLegend" class="space-y-2">
+                            <!-- Legende wird hier dynamisch generiert -->
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h5 class="font-semibold text-gray-900 mb-3">Kostenanalyse</h5>
+                            <div id="costAnalysis" class="space-y-2 text-sm">
+                                <!-- Intelligente Kostenanalyse wird hier generiert -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Intelligente Empfehlungen -->
+                <div class="mt-6 bg-blue-50 p-4 rounded-lg">
+                    <h4 class="text-lg font-semibold text-blue-900 mb-3">
+                        <i class="fas fa-lightbulb mr-2"></i>Intelligente Empfehlungen
+                    </h4>
+                    <div id="costRecommendations" class="space-y-2 text-sm text-blue-800">
+                        <!-- Empfehlungen werden hier dynamisch generiert -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daten Tab -->
+            <div id="content-data" class="tab-content hidden">
+                <h3 class="text-xl font-semibold text-gray-900 mb-4">Projekt-Daten</h3>
+                <p class="text-gray-600">Hier werden die importierten Daten angezeigt...</p>
+            </div>
+
+            <!-- Analyse Tab -->
+            <div id="content-analysis" class="tab-content hidden">
+                <h3 class="text-xl font-semibold text-gray-900 mb-4">Wirtschaftlichkeitsanalyse</h3>
+                <p class="text-gray-600">Hier werden die Analysen angezeigt...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Neue Kosten Modal -->
+<div id="newCostModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen">
+        <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+            <h3 class="text-lg font-semibold mb-4">Neue Investitionskosten hinzufügen</h3>
+            <form id="newCostForm">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Komponente</label>
+                    <select id="componentType" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required onchange="updateComponentOptions()">
+                        <option value="">Komponente auswählen...</option>
+                        <optgroup label="Energiespeicher">
+                            <option value="bess_battery">BESS-Batteriesystem</option>
+                            <option value="bess_inverter">BESS-Wechselrichter</option>
+                            <option value="bess_control">BESS-Steuerung</option>
+                            <option value="bess_cooling">BESS-Kühlung</option>
+                        </optgroup>
+                        <optgroup label="Photovoltaik">
+                            <option value="pv_modules">PV-Module</option>
+                            <option value="pv_inverter">PV-Wechselrichter</option>
+                            <option value="pv_mounting">PV-Montage</option>
+                            <option value="pv_cables">PV-Kabel</option>
+                        </optgroup>
+                        <optgroup label="Wärmepumpe">
+                            <option value="hp_compressor">Wärmepumpe-Kompressor</option>
+                            <option value="hp_heat_exchanger">Wärmetauscher</option>
+                            <option value="hp_control">Wärmepumpe-Steuerung</option>
+                            <option value="hp_pipes">Rohrleitungen</option>
+                        </optgroup>
+                        <optgroup label="Windkraft">
+                            <option value="wind_turbine">Windturbine</option>
+                            <option value="wind_tower">Turm</option>
+                            <option value="wind_foundation">Fundament</option>
+                            <option value="wind_grid">Netzanschluss</option>
+                        </optgroup>
+                        <optgroup label="Wasserkraft">
+                            <option value="hydro_turbine">Wasserturbine</option>
+                            <option value="hydro_generator">Generator</option>
+                            <option value="hydro_pipes">Druckrohrleitung</option>
+                            <option value="hydro_control">Wasserkraft-Steuerung</option>
+                        </optgroup>
+                        <optgroup label="Infrastruktur">
+                            <option value="grid_connection">Netzanschluss</option>
+                            <option value="transformer">Transformator</option>
+                            <option value="switchgear">Schaltanlage</option>
+                            <option value="monitoring">Monitoring-System</option>
+                        </optgroup>
+                        <optgroup label="Installation & Service">
+                            <option value="installation">Installation</option>
+                            <option value="commissioning">Inbetriebnahme</option>
+                            <option value="planning">Planung</option>
+                            <option value="permits">Genehmigungen</option>
+                        </optgroup>
+                        <optgroup label="Sonstiges">
+                            <option value="other">Sonstige Kosten</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Leistung/Größe</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="number" id="componentPower" step="0.01" placeholder="Leistung (kW)" 
+                               class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <input type="number" id="componentCapacity" step="0.01" placeholder="Kapazität (kWh)" 
+                               class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Kosten (€)</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="number" id="costAmount" step="0.01" placeholder="Gesamtkosten" 
+                               class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        <input type="number" id="costPerUnit" step="0.01" placeholder="€/kW oder €/kWh" 
+                               class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Beschreibung</label>
+                    <textarea id="costDescription" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeNewCostModal()" class="px-4 py-2 text-gray-600 hover:text-gray-800">
+                        Abbrechen
+                    </button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
+                        Speichern
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Kosten bearbeiten Modal -->
+<div id="editCostModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen">
+        <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+            <h3 class="text-lg font-semibold mb-4">Investitionskosten bearbeiten</h3>
+            <form id="editCostForm">
+                <input type="hidden" id="editCostId">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Komponente</label>
+                    <select id="editComponentType" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        <option value="">Komponente auswählen...</option>
+                        <option value="bess">BESS-System</option>
+                        <option value="pv">PV-Anlage</option>
+                        <option value="inverter">Wechselrichter</option>
+                        <option value="installation">Installation</option>
+                        <option value="grid_connection">Netzanschluss</option>
+                        <option value="monitoring">Monitoring</option>
+                        <option value="other">Sonstiges</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Kosten (€)</label>
+                    <input type="number" id="editCostAmount" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Beschreibung</label>
+                    <textarea id="editCostDescription" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeEditCostModal()" class="px-4 py-2 text-gray-600 hover:text-gray-800">
+                        Abbrechen
+                    </button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
+                        Speichern
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentTab = 'overview';
+let projectId = {{ project.id }};
+
+// Tab-Funktionalität
+function showTab(tabName) {
+    // Alle Tabs ausblenden
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    
+    // Alle Tab-Buttons zurücksetzen
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('border-blue-500', 'text-blue-600');
+        button.classList.add('border-transparent', 'text-gray-500');
+    });
+    
+    // Gewählten Tab anzeigen
+    document.getElementById(`content-${tabName}`).classList.remove('hidden');
+    document.getElementById(`tab-${tabName}`).classList.remove('border-transparent', 'text-gray-500');
+    document.getElementById(`tab-${tabName}`).classList.add('border-blue-500', 'text-blue-600');
+    
+    currentTab = tabName;
+    
+    // Tab-spezifische Daten laden
+    if (tabName === 'costs') {
+        loadInvestmentCosts();
+    }
+}
+
+// Investitionskosten laden
+function loadInvestmentCosts() {
+    fetch(`/api/investment-costs?project_id=${projectId}`)
+        .then(response => response.json())
+        .then(costs => {
+            displayCosts(costs);
+            updateCostsChart(costs);
+            generateCostAnalysis(costs);
+        })
+        .catch(error => {
+            console.error('Fehler beim Laden der Investitionskosten:', error);
+        });
+}
+
+// Kosten anzeigen
+function displayCosts(costs) {
+    const tbody = document.getElementById('costsTableBody');
+    tbody.innerHTML = '';
+    
+    let total = 0;
+    let bessTotal = 0;
+    let pvTotal = 0;
+    let otherTotal = 0;
+    
+    costs.forEach(cost => {
+        total += cost.cost_eur;
+        
+        if (cost.component_type === 'bess') {
+            bessTotal += cost.cost_eur;
+        } else if (cost.component_type === 'pv') {
+            pvTotal += cost.cost_eur;
+        } else {
+            otherTotal += cost.cost_eur;
+        }
+        
+        const row = `
+            <tr>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${cost.component_type}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${cost.component_type}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${cost.cost_eur.toLocaleString()} €</td>
+                <td class="px-6 py-4 text-sm text-gray-500">${cost.description || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <button onclick="editCost(${cost.id})" class="text-blue-600 hover:text-blue-900 mr-3">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="deleteCost(${cost.id})" class="text-red-600 hover:text-red-900">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
+    
+    // Übersicht aktualisieren
+    document.getElementById('costsTotal').textContent = total.toLocaleString();
+    document.getElementById('costsBess').textContent = bessTotal.toLocaleString();
+    document.getElementById('costsPv').textContent = pvTotal.toLocaleString();
+    document.getElementById('costsOther').textContent = otherTotal.toLocaleString();
+    
+    // Projekt-Status aktualisieren
+    document.getElementById('totalCosts').textContent = total.toLocaleString() + ' €';
+}
+
+// Verbesserte Chart-Funktionalität
+function updateCostsChart(costs) {
+    const ctx = document.getElementById('costsChart').getContext('2d');
+    
+    // Bestehendes Chart zerstören falls vorhanden
+    if (window.costsChart) {
+        window.costsChart.destroy();
+    }
+    
+    const data = {
+        bess: 0,
+        pv: 0,
+        other: 0
+    };
+    
+    costs.forEach(cost => {
+        if (cost.component_type === 'bess') {
+            data.bess += cost.cost_eur;
+        } else if (cost.component_type === 'pv') {
+            data.pv += cost.cost_eur;
+        } else {
+            data.other += cost.cost_eur;
+        }
+    });
+    
+    const chartData = {
+        labels: ['BESS-System', 'PV-Anlage', 'Sonstige'],
+        datasets: [{
+            data: [data.bess, data.pv, data.other],
+            backgroundColor: ['#10B981', '#8B5CF6', '#F59E0B'],
+            borderWidth: 2,
+            borderColor: '#ffffff'
+        }]
+    };
+    
+    window.costsChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+    
+    // Legende generieren
+    generateLegend(data);
+}
+
+// Legende generieren
+function generateLegend(data) {
+    const legend = document.getElementById('costsLegend');
+    const total = data.bess + data.pv + data.other;
+    
+    legend.innerHTML = `
+        <div class="flex items-center space-x-3">
+            <div class="w-4 h-4 bg-green-500 rounded"></div>
+            <span class="text-sm">BESS-System: ${data.bess.toLocaleString()} € (${((data.bess/total)*100).toFixed(1)}%)</span>
+        </div>
+        <div class="flex items-center space-x-3">
+            <div class="w-4 h-4 bg-purple-500 rounded"></div>
+            <span class="text-sm">PV-Anlage: ${data.pv.toLocaleString()} € (${((data.pv/total)*100).toFixed(1)}%)</span>
+        </div>
+        <div class="flex items-center space-x-3">
+            <div class="w-4 h-4 bg-orange-500 rounded"></div>
+            <span class="text-sm">Sonstige: ${data.other.toLocaleString()} € (${((data.other/total)*100).toFixed(1)}%)</span>
+        </div>
+        <div class="border-t pt-2 mt-2">
+            <div class="font-semibold">Gesamt: ${total.toLocaleString()} €</div>
+        </div>
+    `;
+}
+
+// Modal-Funktionalität
+function openNewCostModal() {
+    document.getElementById('newCostModal').classList.remove('hidden');
+}
+
+function closeNewCostModal() {
+    document.getElementById('newCostModal').classList.add('hidden');
+    document.getElementById('newCostForm').reset();
+}
+
+// Neue Kosten speichern
+document.getElementById('newCostForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = {
+        project_id: projectId,
+        component_type: document.getElementById('componentType').value,
+        component_subtype: document.getElementById('componentType').value.split('_')[1] || null,
+        cost_eur: parseFloat(document.getElementById('costAmount').value),
+        cost_per_unit: parseFloat(document.getElementById('costPerUnit').value) || null,
+        power_kw: parseFloat(document.getElementById('componentPower').value) || null,
+        capacity_kwh: parseFloat(document.getElementById('componentCapacity').value) || null,
+        description: document.getElementById('costDescription').value,
+        manufacturer: null,
+        model: null,
+        quantity: 1
+    };
+    
+    fetch('/api/investment-costs', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeNewCostModal();
+            loadInvestmentCosts();
+        } else {
+            alert('Fehler beim Speichern der Kosten: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Fehler:', error);
+        alert('Fehler beim Speichern der Kosten');
+    });
+});
+
+// Kosten bearbeiten
+function editCost(costId) {
+    fetch(`/api/investment-costs/${costId}`)
+        .then(response => response.json())
+        .then(cost => {
+            document.getElementById('editCostId').value = cost.id;
+            document.getElementById('editComponentType').value = cost.component_type;
+            document.getElementById('editCostAmount').value = cost.cost_eur;
+            document.getElementById('editCostDescription').value = cost.description;
+            document.getElementById('editCostModal').classList.remove('hidden');
+        })
+        .catch(error => {
+            console.error('Fehler beim Laden der Kosten:', error);
+            alert('Fehler beim Laden der Kosten');
+        });
+}
+
+// Kosten bearbeiten speichern
+document.getElementById('editCostForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = {
+        component_type: document.getElementById('editComponentType').value,
+        cost_eur: parseFloat(document.getElementById('editCostAmount').value),
+        description: document.getElementById('editCostDescription').value
+    };
+    
+    fetch(`/api/investment-costs/${document.getElementById('editCostId').value}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeEditCostModal();
+            loadInvestmentCosts();
+        } else {
+            alert('Fehler beim Speichern der Kosten: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Fehler:', error);
+        alert('Fehler beim Speichern der Kosten');
+    });
+});
+
+// Kosten löschen
+function deleteCost(costId) {
+    if (confirm('Möchten Sie diese Kosten wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) {
+        fetch(`/api/investment-costs/${costId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                loadInvestmentCosts();
+            } else {
+                alert('Fehler beim Löschen der Kosten: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Fehler:', error);
+            alert('Fehler beim Löschen der Kosten');
+        });
+    }
+}
+
+// Projekt löschen
+function deleteProject(projectId) {
+    if (confirm('Möchten Sie dieses Projekt wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) {
+        fetch(`/api/projects/${projectId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = '/projects';
+            } else {
+                alert('Fehler beim Löschen des Projekts: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Fehler:', error);
+            alert('Fehler beim Löschen des Projekts');
+        });
+    }
+}
+
+// Kosten bearbeiten schließen
+function closeEditCostModal() {
+    document.getElementById('editCostModal').classList.add('hidden');
+    document.getElementById('editCostForm').reset();
+}
+
+// Initial laden
+document.addEventListener('DOMContentLoaded', function() {
+    showTab('overview');
+});
+
+// Intelligente Komponenten-Verwaltung
+function updateComponentOptions() {
+    const componentType = document.getElementById('componentType').value;
+    const powerInput = document.getElementById('componentPower');
+    const capacityInput = document.getElementById('componentCapacity');
+    const costPerUnitInput = document.getElementById('costPerUnit');
+    
+    // Standardwerte basierend auf Komponententyp
+    const componentDefaults = {
+        'bess_battery': { power: 5000, capacity: 5000, costPerUnit: 200 },
+        'bess_inverter': { power: 5000, capacity: null, costPerUnit: 150 },
+        'pv_modules': { power: 1480, capacity: null, costPerUnit: 800 },
+        'pv_inverter': { power: 1480, capacity: null, costPerUnit: 200 },
+        'hp_compressor': { power: 50, capacity: null, costPerUnit: 2000 },
+        'wind_turbine': { power: 3000, capacity: null, costPerUnit: 1200 },
+        'hydro_turbine': { power: 1000, capacity: null, costPerUnit: 2500 },
+        'grid_connection': { power: 5000, capacity: null, costPerUnit: 100 },
+        'transformer': { power: 5000, capacity: null, costPerUnit: 50 },
+        'monitoring': { power: null, capacity: null, costPerUnit: 5000 }
+    };
+    
+    if (componentDefaults[componentType]) {
+        const defaults = componentDefaults[componentType];
+        if (defaults.power) powerInput.value = defaults.power;
+        if (defaults.capacity) capacityInput.value = defaults.capacity;
+        if (defaults.costPerUnit) costPerUnitInput.value = defaults.costPerUnit;
+        
+        // Automatische Kostenberechnung
+        calculateTotalCost();
+    }
+    
+    // Placeholder und Labels anpassen
+    updateInputLabels(componentType);
+}
+
+function updateInputLabels(componentType) {
+    const powerInput = document.getElementById('componentPower');
+    const capacityInput = document.getElementById('componentCapacity');
+    const costPerUnitInput = document.getElementById('costPerUnit');
+    
+    const labels = {
+        'bess_battery': { power: 'Leistung (kW)', capacity: 'Kapazität (kWh)', cost: '€/kWh' },
+        'bess_inverter': { power: 'Leistung (kW)', capacity: '', cost: '€/kW' },
+        'pv_modules': { power: 'Leistung (kWp)', capacity: '', cost: '€/kWp' },
+        'pv_inverter': { power: 'Leistung (kW)', capacity: '', cost: '€/kW' },
+        'hp_compressor': { power: 'Leistung (kW)', capacity: '', cost: '€/kW' },
+        'wind_turbine': { power: 'Leistung (kW)', capacity: '', cost: '€/kW' },
+        'hydro_turbine': { power: 'Leistung (kW)', capacity: '', cost: '€/kW' },
+        'grid_connection': { power: 'Leistung (kW)', capacity: '', cost: '€/kW' },
+        'transformer': { power: 'Leistung (kVA)', capacity: '', cost: '€/kVA' },
+        'monitoring': { power: '', capacity: '', cost: '€/System' }
+    };
+    
+    if (labels[componentType]) {
+        const label = labels[componentType];
+        powerInput.placeholder = label.power;
+        capacityInput.placeholder = label.capacity;
+        costPerUnitInput.placeholder = label.cost;
+        
+        // Inputs ein-/ausblenden basierend auf Komponententyp
+        powerInput.parentElement.style.display = label.power ? 'block' : 'none';
+        capacityInput.parentElement.style.display = label.capacity ? 'block' : 'none';
+    }
+}
+
+function calculateTotalCost() {
+    const power = parseFloat(document.getElementById('componentPower').value) || 0;
+    const capacity = parseFloat(document.getElementById('componentCapacity').value) || 0;
+    const costPerUnit = parseFloat(document.getElementById('costPerUnit').value) || 0;
+    const totalCostInput = document.getElementById('costAmount');
+    
+    let totalCost = 0;
+    const componentType = document.getElementById('componentType').value;
+    
+    // Intelligente Kostenberechnung basierend auf Komponententyp
+    if (componentType.includes('bess_battery')) {
+        totalCost = capacity * costPerUnit;
+    } else if (componentType.includes('monitoring')) {
+        totalCost = costPerUnit; // Fixkosten
+    } else {
+        totalCost = power * costPerUnit;
+    }
+    
+    totalCostInput.value = totalCost.toFixed(2);
+}
+
+// Event Listeners für automatische Berechnung
+document.addEventListener('DOMContentLoaded', function() {
+    const powerInput = document.getElementById('componentPower');
+    const capacityInput = document.getElementById('componentCapacity');
+    const costPerUnitInput = document.getElementById('costPerUnit');
+    
+    if (powerInput) powerInput.addEventListener('input', calculateTotalCost);
+    if (capacityInput) capacityInput.addEventListener('input', calculateTotalCost);
+    if (costPerUnitInput) costPerUnitInput.addEventListener('input', calculateTotalCost);
+});
+
+// Intelligente Kostenanalyse
+function generateCostAnalysis(costs) {
+    const analysisDiv = document.getElementById('costAnalysis');
+    const recommendationsDiv = document.getElementById('costRecommendations');
+    
+    // Kosten nach Kategorien gruppieren
+    const categories = {
+        'bess': { total: 0, items: [], avgCostPerKwh: 0 },
+        'pv': { total: 0, items: [], avgCostPerKw: 0 },
+        'hp': { total: 0, items: [], avgCostPerKw: 0 },
+        'wind': { total: 0, items: [], avgCostPerKw: 0 },
+        'hydro': { total: 0, items: [], avgCostPerKw: 0 },
+        'infrastructure': { total: 0, items: [] },
+        'installation': { total: 0, items: [] },
+        'other': { total: 0, items: [] }
+    };
+    
+    costs.forEach(cost => {
+        const category = getCostCategory(cost.component_type);
+        categories[category].total += cost.cost_eur;
+        categories[category].items.push(cost);
+    });
+    
+    // Analyse generieren
+    let analysisHtml = '';
+    let recommendationsHtml = '';
+    
+    // BESS-Analyse
+    if (categories.bess.total > 0) {
+        const bessItems = categories.bess.items;
+        const totalCapacity = bessItems.reduce((sum, item) => sum + (item.capacity_kwh || 0), 0);
+        const avgCostPerKwh = totalCapacity > 0 ? categories.bess.total / totalCapacity : 0;
+        
+        analysisHtml += `
+            <div class="border-b pb-2 mb-2">
+                <div class="font-medium text-gray-900">BESS-System</div>
+                <div class="text-gray-600">Gesamt: ${categories.bess.total.toLocaleString()} €</div>
+                <div class="text-gray-600">Kapazität: ${totalCapacity.toLocaleString()} kWh</div>
+                <div class="text-gray-600">Durchschnitt: ${avgCostPerKwh.toFixed(0)} €/kWh</div>
+            </div>
+        `;
+        
+        // Empfehlungen für BESS
+        if (avgCostPerKwh > 300) {
+            recommendationsHtml += `
+                <div class="flex items-start space-x-2">
+                    <i class="fas fa-exclamation-triangle text-yellow-600 mt-1"></i>
+                    <div>BESS-Kosten (${avgCostPerKwh.toFixed(0)} €/kWh) sind über dem Marktdurchschnitt. Prüfen Sie alternative Hersteller.</div>
+                </div>
+            `;
+        }
+    }
+    
+    // PV-Analyse
+    if (categories.pv.total > 0) {
+        const pvItems = categories.pv.items;
+        const totalPower = pvItems.reduce((sum, item) => sum + (item.power_kw || 0), 0);
+        const avgCostPerKw = totalPower > 0 ? categories.pv.total / totalPower : 0;
+        
+        analysisHtml += `
+            <div class="border-b pb-2 mb-2">
+                <div class="font-medium text-gray-900">PV-System</div>
+                <div class="text-gray-600">Gesamt: ${categories.pv.total.toLocaleString()} €</div>
+                <div class="text-gray-600">Leistung: ${totalPower.toLocaleString()} kWp</div>
+                <div class="text-gray-600">Durchschnitt: ${avgCostPerKw.toFixed(0)} €/kWp</div>
+            </div>
+        `;
+        
+        // Empfehlungen für PV
+        if (avgCostPerKw > 1200) {
+            recommendationsHtml += `
+                <div class="flex items-start space-x-2">
+                    <i class="fas fa-exclamation-triangle text-yellow-600 mt-1"></i>
+                    <div>PV-Kosten (${avgCostPerKw.toFixed(0)} €/kWp) sind über dem Marktdurchschnitt. Prüfen Sie Modul-Preise.</div>
+                </div>
+            `;
+        }
+    }
+    
+    // Wärmepumpen-Analyse
+    if (categories.hp.total > 0) {
+        const hpItems = categories.hp.items;
+        const totalPower = hpItems.reduce((sum, item) => sum + (item.power_kw || 0), 0);
+        const avgCostPerKw = totalPower > 0 ? categories.hp.total / totalPower : 0;
+        
+        analysisHtml += `
+            <div class="border-b pb-2 mb-2">
+                <div class="font-medium text-gray-900">Wärmepumpe</div>
+                <div class="text-gray-600">Gesamt: ${categories.hp.total.toLocaleString()} €</div>
+                <div class="text-gray-600">Leistung: ${totalPower.toLocaleString()} kW</div>
+                <div class="text-gray-600">Durchschnitt: ${avgCostPerKw.toFixed(0)} €/kW</div>
+            </div>
+        `;
+    }
+    
+    // Windkraft-Analyse
+    if (categories.wind.total > 0) {
+        const windItems = categories.wind.items;
+        const totalPower = windItems.reduce((sum, item) => sum + (item.power_kw || 0), 0);
+        const avgCostPerKw = totalPower > 0 ? categories.wind.total / totalPower : 0;
+        
+        analysisHtml += `
+            <div class="border-b pb-2 mb-2">
+                <div class="font-medium text-gray-900">Windkraft</div>
+                <div class="text-gray-600">Gesamt: ${categories.wind.total.toLocaleString()} €</div>
+                <div class="text-gray-600">Leistung: ${totalPower.toLocaleString()} kW</div>
+                <div class="text-gray-600">Durchschnitt: ${avgCostPerKw.toFixed(0)} €/kW</div>
+            </div>
+        `;
+    }
+    
+    // Wasserkraft-Analyse
+    if (categories.hydro.total > 0) {
+        const hydroItems = categories.hydro.items;
+        const totalPower = hydroItems.reduce((sum, item) => sum + (item.power_kw || 0), 0);
+        const avgCostPerKw = totalPower > 0 ? categories.hydro.total / totalPower : 0;
+        
+        analysisHtml += `
+            <div class="border-b pb-2 mb-2">
+                <div class="font-medium text-gray-900">Wasserkraft</div>
+                <div class="text-gray-600">Gesamt: ${categories.hydro.total.toLocaleString()} €</div>
+                <div class="text-gray-600">Leistung: ${totalPower.toLocaleString()} kW</div>
+                <div class="text-gray-600">Durchschnitt: ${avgCostPerKw.toFixed(0)} €/kW</div>
+            </div>
+        `;
+    }
+    
+    // Infrastruktur
+    if (categories.infrastructure.total > 0) {
+        analysisHtml += `
+            <div class="border-b pb-2 mb-2">
+                <div class="font-medium text-gray-900">Infrastruktur</div>
+                <div class="text-gray-600">Gesamt: ${categories.infrastructure.total.toLocaleString()} €</div>
+            </div>
+        `;
+    }
+    
+    // Installation
+    if (categories.installation.total > 0) {
+        analysisHtml += `
+            <div class="border-b pb-2 mb-2">
+                <div class="font-medium text-gray-900">Installation & Service</div>
+                <div class="text-gray-600">Gesamt: ${categories.installation.total.toLocaleString()} €</div>
+            </div>
+        `;
+    }
+    
+    // Gesamtkosten
+    const totalCosts = Object.values(categories).reduce((sum, cat) => sum + cat.total, 0);
+    analysisHtml += `
+        <div class="pt-2">
+            <div class="font-bold text-gray-900">Gesamtkosten: ${totalCosts.toLocaleString()} €</div>
+        </div>
+    `;
+    
+    analysisDiv.innerHTML = analysisHtml;
+    
+    // Standardempfehlungen
+    if (recommendationsHtml === '') {
+        recommendationsHtml = `
+            <div class="flex items-start space-x-2">
+                <i class="fas fa-check-circle text-green-600 mt-1"></i>
+                <div>Kostenstruktur ist marktüblich. Keine besonderen Optimierungen erforderlich.</div>
+            </div>
+        `;
+    }
+    
+    recommendationsDiv.innerHTML = recommendationsHtml;
+}
+
+// Kategorie-Erkennung
+function getCostCategory(componentType) {
+    if (componentType.startsWith('bess_')) return 'bess';
+    if (componentType.startsWith('pv_')) return 'pv';
+    if (componentType.startsWith('hp_')) return 'hp';
+    if (componentType.startsWith('wind_')) return 'wind';
+    if (componentType.startsWith('hydro_')) return 'hydro';
+    if (['grid_connection', 'transformer', 'switchgear', 'monitoring'].includes(componentType)) return 'infrastructure';
+    if (['installation', 'commissioning', 'planning', 'permits'].includes(componentType)) return 'installation';
+    return 'other';
+}
+</script>
+{% endblock %} 

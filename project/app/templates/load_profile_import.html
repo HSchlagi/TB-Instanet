@@ -1,0 +1,870 @@
+{% extends "base.html" %}
+
+{% block title %}Lastprofil Import & Analyse{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-4">
+            <i class="fas fa-chart-line text-blue-600 mr-3"></i>
+            Lastprofil Import & Analyse
+        </h1>
+        <p class="text-gray-600">Importiere Lastprofile aus CSV und Excel-Dateien mit mehreren Zählpunkten.</p>
+    </div>
+
+    <!-- Projekt-Auswahl -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-project-diagram text-green-600 mr-2"></i>
+            Projekt auswählen
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Projekt</label>
+                <select id="projectSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Projekt auswählen...</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Bestehende Lastprofile</label>
+                <select id="loadProfileSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Lastprofil auswählen...</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import-Bereich -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-upload text-purple-600 mr-2"></i>
+            Lastprofil importieren
+        </h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- CSV Import -->
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <i class="fas fa-file-csv text-4xl text-gray-400 mb-4"></i>
+                <h3 class="text-lg font-medium text-gray-800 mb-2">CSV-Datei importieren</h3>
+                <p class="text-sm text-gray-600 mb-4">Unterstützt: Datum, Zeit, Last (kW)</p>
+                <input type="file" id="csvFile" accept=".csv" class="hidden">
+                <button onclick="document.getElementById('csvFile').click()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
+                    CSV auswählen
+                </button>
+                <div id="csvPreview" class="mt-4 text-left hidden">
+                    <h4 class="font-medium text-gray-800 mb-2">Vorschau:</h4>
+                    <div class="bg-gray-50 p-3 rounded text-sm overflow-x-auto">
+                        <pre id="csvContent"></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Excel Import -->
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <i class="fas fa-file-excel text-4xl text-green-400 mb-4"></i>
+                <h3 class="text-lg font-medium text-gray-800 mb-2">Excel-Datei importieren</h3>
+                <p class="text-sm text-gray-600 mb-4">Unterstützt: Mehrere Zählpunkte, Blätter</p>
+                <input type="file" id="excelFile" accept=".xlsx,.xls" class="hidden">
+                <button onclick="document.getElementById('excelFile').click()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md">
+                    Excel auswählen
+                </button>
+                <div id="excelPreview" class="mt-4 text-left hidden">
+                    <h4 class="font-medium text-gray-800 mb-2">Zählpunkte:</h4>
+                    <div id="meterPoints" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- Manuelle Eingabe -->
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                <i class="fas fa-keyboard text-4xl text-gray-400 mb-4"></i>
+                <h3 class="text-lg font-medium text-gray-800 mb-2">Manuelle Eingabe</h3>
+                <p class="text-sm text-gray-600 mb-4">Einzelne Werte hinzufügen</p>
+                
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Datum & Zeit</label>
+                        <input type="datetime-local" id="manualDateTime" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Last (kW)</label>
+                        <input type="number" id="manualLoad" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <button onclick="addManualValue()" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md">
+                        Wert hinzufügen
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import-Einstellungen -->
+        <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+            <h3 class="text-lg font-medium text-gray-800 mb-4">Import-Einstellungen</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Zeitintervall</label>
+                    <select id="timeInterval" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="15">15 Minuten</option>
+                        <option value="30">30 Minuten</option>
+                        <option value="60">1 Stunde</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Datum-Format</label>
+                    <select id="dateFormat" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="auto">Automatisch erkennen</option>
+                        <option value="DD.MM.YYYY">DD.MM.YYYY</option>
+                        <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                        <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Zählpunkte kombinieren</label>
+                    <select id="meterCombination" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="sum">Summe aller Zählpunkte</option>
+                        <option value="max">Maximum aller Zählpunkte</option>
+                        <option value="average">Durchschnitt aller Zählpunkte</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import-Button -->
+        <div class="mt-6 text-center">
+            <button id="importButton" onclick="importLoadProfile()" class="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-md text-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fas fa-upload mr-2"></i>
+                Lastprofil importieren
+            </button>
+        </div>
+    </div>
+
+    <!-- Analyse-Bereich -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-chart-area text-orange-600 mr-2"></i>
+            Grafische Analyse
+        </h2>
+        
+        <!-- Zeitraum-Auswahl -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Zeitraum</label>
+                <select id="timeRange" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="updateDateInputs()">
+                    <option value="custom">Benutzerdefiniert</option>
+                    <option value="week">Letzte Woche</option>
+                    <option value="month">Letzter Monat</option>
+                    <option value="year">Letztes Jahr</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Von</label>
+                <input type="date" id="startDate" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Bis</label>
+                <input type="date" id="endDate" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="flex items-end">
+                <button onclick="loadAnalysisData()" class="w-full bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-md">
+                    <i class="fas fa-search mr-2"></i>
+                    Analysieren
+                </button>
+            </div>
+        </div>
+
+        <!-- Statistiken -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-blue-50 p-4 rounded-lg">
+                <div class="text-2xl font-bold text-blue-600" id="avgLoad">-</div>
+                <div class="text-sm text-gray-600">Durchschnitt (kW)</div>
+            </div>
+            <div class="bg-green-50 p-4 rounded-lg">
+                <div class="text-2xl font-bold text-green-600" id="maxLoad">-</div>
+                <div class="text-sm text-gray-600">Maximum (kW)</div>
+            </div>
+            <div class="bg-red-50 p-4 rounded-lg">
+                <div class="text-2xl font-bold text-red-600" id="minLoad">-</div>
+                <div class="text-sm text-gray-600">Minimum (kW)</div>
+            </div>
+            <div class="bg-purple-50 p-4 rounded-lg">
+                <div class="text-2xl font-bold text-purple-600" id="totalEnergy">-</div>
+                <div class="text-sm text-gray-600">Gesamtenergie (kWh)</div>
+            </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="bg-gray-50 p-4 rounded-lg">
+            <canvas id="loadProfileChart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- BESS-Analyse -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-battery-three-quarters text-yellow-600 mr-2"></i>
+            BESS-Peak-Shaving Analyse
+        </h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">BESS-Größe (kWh)</label>
+                <input type="number" id="bessCapacity" step="0.1" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">BESS-Leistung (kW)</label>
+                <input type="number" id="bessPower" step="0.1" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="flex items-end">
+                <button onclick="calculateBESSAnalysis()" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-md">
+                    <i class="fas fa-calculator mr-2"></i>
+                    BESS-Analyse
+                </button>
+            </div>
+        </div>
+
+        <!-- BESS-Ergebnisse -->
+        <div id="bessResults" class="hidden">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-yellow-50 p-4 rounded-lg">
+                    <div class="text-2xl font-bold text-yellow-600" id="peakReduction">-</div>
+                    <div class="text-sm text-gray-600">Peak-Reduktion (kW)</div>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <div class="text-2xl font-bold text-blue-600" id="energyStored">-</div>
+                    <div class="text-sm text-gray-600">Gespeicherte Energie (kWh)</div>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <div class="text-2xl font-bold text-green-600" id="costSavings">-</div>
+                    <div class="text-sm text-gray-600">Kosteneinsparung (€)</div>
+                </div>
+            </div>
+            
+            <!-- BESS-Chart -->
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <canvas id="bessChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+let currentProjectId = null;
+let currentLoadProfileId = null;
+let loadProfileChart = null;
+let bessChart = null;
+let manualValues = [];
+let excelData = null;
+let selectedMeters = [];
+
+// Projekte laden
+async function loadProjects() {
+    try {
+        const response = await fetch('/api/projects');
+        const projects = await response.json();
+        
+        const select = document.getElementById('projectSelect');
+        select.innerHTML = '<option value="">Projekt auswählen...</option>';
+        
+        projects.forEach(project => {
+            const option = document.createElement('option');
+            option.value = project.id;
+            option.textContent = project.name;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Fehler beim Laden der Projekte:', error);
+    }
+}
+
+// Lastprofile für Projekt laden
+async function loadLoadProfiles(projectId) {
+    try {
+        const response = await fetch(`/api/projects/${projectId}/load-profiles`);
+        const loadProfiles = await response.json();
+        
+        const select = document.getElementById('loadProfileSelect');
+        select.innerHTML = '<option value="">Lastprofil auswählen...</option>';
+        
+        loadProfiles.forEach(profile => {
+            const option = document.createElement('option');
+            option.value = profile.id;
+            option.textContent = `${profile.name} (${profile.data_points} Punkte)`;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Fehler beim Laden der Lastprofile:', error);
+    }
+}
+
+// CSV-Datei verarbeiten
+document.getElementById('csvFile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const csv = e.target.result;
+            document.getElementById('csvContent').textContent = csv.substring(0, 500) + '...';
+            document.getElementById('csvPreview').classList.remove('hidden');
+        };
+        reader.readAsText(file);
+    }
+});
+
+// Excel-Datei verarbeiten
+document.getElementById('excelFile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                excelData = workbook;
+                
+                // Zählpunkte anzeigen
+                displayMeterPoints(workbook);
+                document.getElementById('excelPreview').classList.remove('hidden');
+            } catch (error) {
+                console.error('Fehler beim Lesen der Excel-Datei:', error);
+                alert('Fehler beim Lesen der Excel-Datei');
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+});
+
+// Zählpunkte aus Excel anzeigen
+function displayMeterPoints(workbook) {
+    const container = document.getElementById('meterPoints');
+    container.innerHTML = '';
+    selectedMeters = [];
+    
+    workbook.SheetNames.forEach((sheetName, index) => {
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        if (jsonData.length > 1) { // Mindestens Header + 1 Datenzeile
+            const div = document.createElement('div');
+            div.className = 'flex items-center space-x-2 p-2 bg-white rounded border';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `meter-${index}`;
+            checkbox.checked = true;
+            checkbox.onchange = function() {
+                if (this.checked) {
+                    selectedMeters.push(sheetName);
+                } else {
+                    selectedMeters = selectedMeters.filter(m => m !== sheetName);
+                }
+            };
+            
+            const label = document.createElement('label');
+            label.htmlFor = `meter-${index}`;
+            label.className = 'text-sm text-gray-700';
+            label.textContent = `${sheetName} (${jsonData.length - 1} Zeilen)`;
+            
+            div.appendChild(checkbox);
+            div.appendChild(label);
+            container.appendChild(div);
+            
+            selectedMeters.push(sheetName);
+        }
+    });
+}
+
+// Manuellen Wert hinzufügen
+function addManualValue() {
+    const dateTime = document.getElementById('manualDateTime').value;
+    const load = parseFloat(document.getElementById('manualLoad').value);
+    
+    if (!dateTime || isNaN(load)) {
+        alert('Bitte fülle alle Felder aus');
+        return;
+    }
+    
+    manualValues.push({
+        timestamp: new Date(dateTime).toISOString(),
+        load: load
+    });
+    
+    // Felder zurücksetzen
+    document.getElementById('manualDateTime').value = '';
+    document.getElementById('manualLoad').value = '';
+    
+    alert(`Wert hinzugefügt: ${new Date(dateTime).toLocaleString()} - ${load} kW`);
+}
+
+// Lastprofil importieren
+async function importLoadProfile() {
+    if (!currentProjectId) {
+        alert('Bitte wähle ein Projekt aus');
+        return;
+    }
+    
+    const csvFile = document.getElementById('csvFile').files[0];
+    const excelFile = document.getElementById('excelFile').files[0];
+    
+    if (!csvFile && !excelFile && manualValues.length === 0) {
+        alert('Bitte wähle eine Datei aus oder füge manuelle Werte hinzu');
+        return;
+    }
+    
+    try {
+        let data;
+        
+        if (csvFile) {
+            // CSV verarbeiten
+            const csvText = await csvFile.text();
+            data = parseCSV(csvText);
+        } else if (excelFile && excelData) {
+            // Excel verarbeiten
+            data = parseExcel(excelData);
+        } else {
+            // Manuelle Werte verwenden
+            data = manualValues;
+        }
+        
+        if (data.length === 0) {
+            alert('Keine gültigen Daten gefunden');
+            return;
+        }
+        
+        // An API senden
+        const response = await fetch('/api/load-profiles', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                project_id: currentProjectId,
+                name: `Lastprofil ${new Date().toLocaleDateString()}`,
+                data: data,
+                time_interval: parseInt(document.getElementById('timeInterval').value),
+                date_format: document.getElementById('dateFormat').value,
+                meter_combination: document.getElementById('meterCombination').value
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Lastprofil erfolgreich importiert!');
+            loadLoadProfiles(currentProjectId);
+            manualValues = [];
+            excelData = null;
+            selectedMeters = [];
+            document.getElementById('csvFile').value = '';
+            document.getElementById('excelFile').value = '';
+            document.getElementById('csvPreview').classList.add('hidden');
+            document.getElementById('excelPreview').classList.add('hidden');
+        } else {
+            alert('Fehler beim Import: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Fehler beim Import:', error);
+        alert('Fehler beim Import des Lastprofils');
+    }
+}
+
+// CSV parsen
+function parseCSV(csvText) {
+    const lines = csvText.split('\n');
+    const data = [];
+    
+    for (let i = 1; i < lines.length; i++) { // Erste Zeile überspringen (Header)
+        const line = lines[i].trim();
+        if (line) {
+            const parts = line.split(',');
+            if (parts.length >= 2) {
+                const timestamp = parseDateTime(parts[0]);
+                const load = parseFloat(parts[1]);
+                
+                if (timestamp && !isNaN(load)) {
+                    data.push({
+                        timestamp: timestamp.toISOString(),
+                        load: load
+                    });
+                }
+            }
+        }
+    }
+    
+    return data;
+}
+
+// Excel parsen
+function parseExcel(workbook) {
+    const data = [];
+    const combination = document.getElementById('meterCombination').value;
+    
+    // Alle ausgewählten Zählpunkte verarbeiten
+    selectedMeters.forEach(sheetName => {
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        if (jsonData.length > 1) {
+            const headers = jsonData[0];
+            const timeColumnIndex = findTimeColumn(headers);
+            
+            if (timeColumnIndex !== -1) {
+                for (let i = 1; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    if (row[timeColumnIndex]) {
+                        const timestamp = parseDateTime(row[timeColumnIndex]);
+                        
+                        if (timestamp) {
+                            // Alle numerischen Spalten außer Zeit finden
+                            const loadValues = [];
+                            for (let j = 0; j < row.length; j++) {
+                                if (j !== timeColumnIndex && !isNaN(parseFloat(row[j]))) {
+                                    loadValues.push(parseFloat(row[j]));
+                                }
+                            }
+                            
+                            if (loadValues.length > 0) {
+                                let combinedLoad;
+                                switch (combination) {
+                                    case 'sum':
+                                        combinedLoad = loadValues.reduce((a, b) => a + b, 0);
+                                        break;
+                                    case 'max':
+                                        combinedLoad = Math.max(...loadValues);
+                                        break;
+                                    case 'average':
+                                        combinedLoad = loadValues.reduce((a, b) => a + b, 0) / loadValues.length;
+                                        break;
+                                    default:
+                                        combinedLoad = loadValues.reduce((a, b) => a + b, 0);
+                                }
+                                
+                                data.push({
+                                    timestamp: timestamp.toISOString(),
+                                    load: combinedLoad
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    return data;
+}
+
+// Zeit-Spalte finden
+function findTimeColumn(headers) {
+    const timeKeywords = ['zeit', 'time', 'datum', 'date', 'timestamp', 'uhrzeit'];
+    
+    for (let i = 0; i < headers.length; i++) {
+        const header = headers[i].toString().toLowerCase();
+        if (timeKeywords.some(keyword => header.includes(keyword))) {
+            return i;
+        }
+    }
+    
+    return 0; // Fallback: erste Spalte
+}
+
+// Datum/Zeit parsen
+function parseDateTime(value) {
+    if (!value) return null;
+    
+    const dateFormat = document.getElementById('dateFormat').value;
+    let date;
+    
+    try {
+        if (dateFormat === 'auto') {
+            // Automatische Erkennung
+            if (value.includes('T')) {
+                date = new Date(value);
+            } else if (value.includes('.')) {
+                // DD.MM.YYYY Format
+                const parts = value.split('.');
+                if (parts.length === 3) {
+                    date = new Date(parts[2], parts[1] - 1, parts[0]);
+                }
+            } else if (value.includes('-')) {
+                // YYYY-MM-DD Format
+                date = new Date(value);
+            } else if (value.includes('/')) {
+                // MM/DD/YYYY Format
+                const parts = value.split('/');
+                if (parts.length === 3) {
+                    date = new Date(parts[2], parts[0] - 1, parts[1]);
+                }
+            } else {
+                date = new Date(value);
+            }
+        } else {
+            // Spezifisches Format
+            switch (dateFormat) {
+                case 'DD.MM.YYYY':
+                    const parts = value.split('.');
+                    date = new Date(parts[2], parts[1] - 1, parts[0]);
+                    break;
+                case 'YYYY-MM-DD':
+                    date = new Date(value);
+                    break;
+                case 'MM/DD/YYYY':
+                    const parts2 = value.split('/');
+                    date = new Date(parts2[2], parts2[0] - 1, parts2[1]);
+                    break;
+                default:
+                    date = new Date(value);
+            }
+        }
+        
+        return isNaN(date.getTime()) ? null : date;
+    } catch (error) {
+        console.error('Fehler beim Parsen des Datums:', value, error);
+        return null;
+    }
+}
+
+// Zeitraum-Auswahl aktualisieren
+function updateDateInputs() {
+    const timeRange = document.getElementById('timeRange').value;
+    const startDate = document.getElementById('startDate');
+    const endDate = document.getElementById('endDate');
+    
+    const now = new Date();
+    
+    switch (timeRange) {
+        case 'week':
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            startDate.value = weekAgo.toISOString().split('T')[0];
+            endDate.value = now.toISOString().split('T')[0];
+            break;
+        case 'month':
+            const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            startDate.value = monthAgo.toISOString().split('T')[0];
+            endDate.value = now.toISOString().split('T')[0];
+            break;
+        case 'year':
+            const yearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+            startDate.value = yearAgo.toISOString().split('T')[0];
+            endDate.value = now.toISOString().split('T')[0];
+            break;
+    }
+}
+
+// Analysedaten laden
+async function loadAnalysisData() {
+    if (!currentLoadProfileId) {
+        alert('Bitte wähle ein Lastprofil aus');
+        return;
+    }
+    
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    
+    if (!startDate || !endDate) {
+        alert('Bitte wähle einen Zeitraum aus');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/load-profiles/${currentLoadProfileId}/data-range`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                start_date: startDate,
+                end_date: endDate
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            updateStatistics(data.statistics);
+            updateChart(data.data);
+        } else {
+            alert('Fehler beim Laden der Daten: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Fehler beim Laden der Analysedaten:', error);
+        alert('Fehler beim Laden der Analysedaten');
+    }
+}
+
+// Statistiken aktualisieren
+function updateStatistics(stats) {
+    document.getElementById('avgLoad').textContent = stats.average.toFixed(2);
+    document.getElementById('maxLoad').textContent = stats.maximum.toFixed(2);
+    document.getElementById('minLoad').textContent = stats.minimum.toFixed(2);
+    document.getElementById('totalEnergy').textContent = stats.total_energy.toFixed(2);
+}
+
+// Chart aktualisieren
+function updateChart(data) {
+    const ctx = document.getElementById('loadProfileChart').getContext('2d');
+    
+    if (loadProfileChart) {
+        loadProfileChart.destroy();
+    }
+    
+    loadProfileChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.map(d => new Date(d.timestamp).toLocaleString()),
+            datasets: [{
+                label: 'Last (kW)',
+                data: data.map(d => d.load),
+                borderColor: 'rgb(59, 130, 246)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Lastprofil über Zeit'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Last (kW)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Zeit'
+                    }
+                }
+            }
+        }
+    });
+}
+
+// BESS-Analyse berechnen
+async function calculateBESSAnalysis() {
+    const capacity = parseFloat(document.getElementById('bessCapacity').value);
+    const power = parseFloat(document.getElementById('bessPower').value);
+    
+    if (!capacity || !power) {
+        alert('Bitte gib BESS-Größe und -Leistung an');
+        return;
+    }
+    
+    if (!currentLoadProfileId) {
+        alert('Bitte wähle ein Lastprofil aus');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/load-profiles/${currentLoadProfileId}/bess-analysis`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                bess_capacity: capacity,
+                bess_power: power
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            updateBESSResults(data.results);
+            updateBESSChart(data.data);
+            document.getElementById('bessResults').classList.remove('hidden');
+        } else {
+            alert('Fehler bei der BESS-Analyse: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Fehler bei der BESS-Analyse:', error);
+        alert('Fehler bei der BESS-Analyse');
+    }
+}
+
+// BESS-Ergebnisse aktualisieren
+function updateBESSResults(results) {
+    document.getElementById('peakReduction').textContent = results.peak_reduction.toFixed(2);
+    document.getElementById('energyStored').textContent = results.energy_stored.toFixed(2);
+    document.getElementById('costSavings').textContent = results.cost_savings.toFixed(2);
+}
+
+// BESS-Chart aktualisieren
+function updateBESSChart(data) {
+    const ctx = document.getElementById('bessChart').getContext('2d');
+    
+    if (bessChart) {
+        bessChart.destroy();
+    }
+    
+    bessChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.map(d => new Date(d.timestamp).toLocaleString()),
+            datasets: [{
+                label: 'Original Last (kW)',
+                data: data.map(d => d.original_load),
+                borderColor: 'rgb(239, 68, 68)',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                tension: 0.1
+            }, {
+                label: 'Mit BESS (kW)',
+                data: data.map(d => d.bess_load),
+                borderColor: 'rgb(34, 197, 94)',
+                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'BESS-Peak-Shaving Analyse'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Last (kW)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Zeit'
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Event Listeners
+document.getElementById('projectSelect').addEventListener('change', function(e) {
+    currentProjectId = e.target.value;
+    if (currentProjectId) {
+        loadLoadProfiles(currentProjectId);
+    }
+});
+
+document.getElementById('loadProfileSelect').addEventListener('change', function(e) {
+    currentLoadProfileId = e.target.value;
+});
+
+// Initialisierung
+document.addEventListener('DOMContentLoaded', function() {
+    loadProjects();
+    updateDateInputs();
+});
+</script>
+{% endblock %} 

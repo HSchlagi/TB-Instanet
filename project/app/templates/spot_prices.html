@@ -336,11 +336,13 @@ document.getElementById('newPriceForm').addEventListener('submit', async functio
             body: JSON.stringify(formData)
         });
         
-        if (response.ok) {
+        const data = await response.json();
+        
+        if (data.success) {
             closeNewPriceModal();
             loadSpotPrices();
         } else {
-            alert('Fehler beim Hinzufügen des Preises');
+            alert('Fehler beim Hinzufügen des Preises: ' + data.error);
         }
     } catch (error) {
         console.error('Fehler:', error);
@@ -374,15 +376,18 @@ document.getElementById('importForm').addEventListener('submit', async function(
     }
 });
 
-// Preis bearbeiten
+// Spot-Preis bearbeiten
 function editPrice(priceId) {
-    console.log('Preis bearbeiten:', priceId);
+    // Demo-Funktionalität - in einer echten Anwendung würde hier ein Modal geöffnet
+    alert('Bearbeitung von Spot-Preis ' + priceId + ' (Demo-Funktionalität)');
 }
 
-// Preis löschen
+// Spot-Preis löschen
 function deletePrice(priceId) {
-    if (confirm('Preis wirklich löschen?')) {
-        console.log('Preis löschen:', priceId);
+    if (confirm('Möchten Sie diesen Spot-Preis wirklich löschen?')) {
+        // Demo-Funktionalität - in einer echten Anwendung würde hier ein API-Call gemacht
+        alert('Spot-Preis ' + priceId + ' gelöscht (Demo-Funktionalität)');
+        loadSpotPrices(); // Liste neu laden
     }
 }
 

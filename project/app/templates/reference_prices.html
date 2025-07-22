@@ -256,15 +256,18 @@ document.getElementById('newPriceForm').addEventListener('submit', async functio
     }
 });
 
-// Preis bearbeiten
+// Referenzpreis bearbeiten
 function editPrice(priceId) {
-    console.log('Preis bearbeiten:', priceId);
+    // Demo-Funktionalität - in einer echten Anwendung würde hier ein Modal geöffnet
+    alert('Bearbeitung von Referenzpreis ' + priceId + ' (Demo-Funktionalität)');
 }
 
-// Preis löschen
+// Referenzpreis löschen
 function deletePrice(priceId) {
-    if (confirm('Preis wirklich löschen?')) {
-        console.log('Preis löschen:', priceId);
+    if (confirm('Möchten Sie diesen Referenzpreis wirklich löschen?')) {
+        // Demo-Funktionalität - in einer echten Anwendung würde hier ein API-Call gemacht
+        alert('Referenzpreis ' + priceId + ' gelöscht (Demo-Funktionalität)');
+        loadReferencePrices(); // Liste neu laden
     }
 }
 

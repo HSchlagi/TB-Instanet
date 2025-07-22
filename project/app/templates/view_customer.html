@@ -127,7 +127,7 @@ function displayCustomerProjects(projects) {
                     <p class="text-sm text-gray-600">${project.location || 'Kein Standort angegeben'}</p>
                     <p class="text-xs text-gray-500">Erstellt: ${new Date(project.created_at).toLocaleDateString('de-DE')}</p>
                 </div>
-                <a href="/view_project?id=${project.id}" 
+                                        <a href="/project/${project.id}" 
                    class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-sm">
                     <i class="fas fa-eye mr-1"></i>Anzeigen
                 </a>
